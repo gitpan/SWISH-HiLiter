@@ -1,0 +1,10 @@
+Changes
+HiLiter.pm
+Makefile.PL
+MANIFEST
+README
+t/1.t
+examples/hiliter.patch
+examples/README
+examples/swishhiliter.cgi
+META.yml                                Module meta-data (added by MakeMaker)
