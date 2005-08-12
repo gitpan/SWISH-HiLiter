@@ -19,6 +19,7 @@ DEPENDENCIES
 This module requires these other modules and libraries:
 
    HTML::HiLiter
+   SWISH::API
 
 COPYRIGHT AND LICENCE
 

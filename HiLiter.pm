@@ -7,7 +7,7 @@ SWISH::HiLiter -- simple interface to SWISH::API and HTML::HiLiter
 
 =head1 VERSION
 
-0.01
+0.03
 
 
 =head1 SYNOPSIS
@@ -65,7 +65,7 @@ required modules.
 
 Perl 5.6.1 or later.
 
-SWISH::API 0.03 or later.
+SWISH::API 0.04 or later.
 
 =cut
 
@@ -76,23 +76,22 @@ use strict;
 use sigtrap qw(die normal-signals error-signals);
 
 require HTML::HiLiter;
-require SWISH::API;
-
-if ( $SWISH::API::VERSION < 0.03 )
+eval { require SWISH::API }; # eval per cpan bug request 14003
+# the fuzzy word access was fixed in SWISH::API 0.04
+# but this module will still work under 0.03 if not using fuzzy
+if ( $@ or $SWISH::API::VERSION < 0.03 )
 {
-
 	die "SWISH::HiLiter requires SWISH::API version 0.03 or newer\n";
-	
 }
 
 use vars qw/ $VERSION $Context $Occurrences $Max_Chars $Debug $ellip $Word_Ave /;
 
-$VERSION = 0.01;
+$VERSION = 0.03;
 
-$ellip 	= ' ... ';	# for snipping
+$ellip 	    = ' ... ';	# for snipping
 $Debug 		= 0;	# duh.
 $Max_Chars 	= 300;	# for dumb_snip
-$Occurrences	= 5;	# number of instances
+$Occurrences= 5;	# number of instances
 $Context 	= 8;	# number of words before and after match to include
 $Word_Ave	= 5;	# assume the average word is 5 chars (used in re_snip() )
 
@@ -269,7 +268,7 @@ sub _init
     $self->{max_chars} ||= $Max_Chars;
     $self->{context} ||= $Context;
     $self->{debug} ||= $Debug;
-    $self->{escape} ||= 1;
+    $self->{escape} = 1 unless defined $self->{escape};
     $self->{snip} ||= '';
     $self->{snipfunc} = \&loop_snip;	# default
     $self->{snipfunc} = \&re_snip if $self->{snip} =~ /re/i;
@@ -294,16 +293,21 @@ sub stem
 Return the stemmed version of a word. Only works if your first index in SWISH::API
 object used Fuzzy Mode.
 
-This method is just a wrapper around SWISH::API::Fuzzy.
+This method is just a wrapper around SWISH::API::Fuzzify.
+
+B<NOTE:> stem() requires SWISH::API version 0.04 or newer.
 
 =cut
 
+    if ( $SWISH::API::VERSION < 0.04 ) {
+        die "stem() requires SWISH::API version 0.04 or newer\n";
+    }
     my $self = shift;
     my $w = shift;
-	my $index = $self->{index} || ( $self->{swish}->IndexNames )[0];
-	$self->{index} ||= $index;
+    my $index = $self->{index} || ( $self->{swish}->IndexNames )[0];
+    $self->{index} ||= $index;
 	    
-    my $fw = $self->{swish}->Fuzzy( $index, $w );
+    my $fw = $self->{swish}->Fuzzify( $index, $w );
     
     my @fuzz = $fw->WordList;
     
@@ -591,6 +595,10 @@ sub _re_match
 		}
 		
 	# do same for suffix
+    
+    # We get error here under -w
+    # about substr outside of string -- is $end undefined sometimes??
+    
 		unless ( $suffix =~ m/\s$/ or substr( $$text, $end, 1 ) =~ m/(\s)/ ) {
 		   while ( $end <= $t_len and substr( $$text, $end++, 1 ) =~ m/(\S)/ )
 		   {
@@ -930,4 +938,3 @@ Send email to swpubs@cray.com.
 L<HTML::HiLiter>, L<SWISH::API>
 
 =cut
-
