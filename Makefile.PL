@@ -5,5 +5,9 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME              => 'SWISH::HiLiter',
     VERSION_FROM      => 'HiLiter.pm', # finds $VERSION
-    #PREREQ_PM         => { HTML::HiLiter => 0.11, SWISH::API => 0.03 }, 
+    PREREQ_PM         => { 
+	HTML::HiLiter => 0.11, 
+	#SWISH::API => 0.03, 
+	Test::More => 0.1 
+    }, 
 );

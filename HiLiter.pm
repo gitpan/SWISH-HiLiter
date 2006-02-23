@@ -1,13 +1,14 @@
+
 =pod
 
 =head1 NAME
 
-SWISH::HiLiter -- simple interface to SWISH::API and HTML::HiLiter
+SWISH::HiLiter - simple interface to SWISH::API and HTML::HiLiter
 
 
 =head1 VERSION
 
-0.03
+0.04
 
 
 =head1 SYNOPSIS
@@ -76,39 +77,39 @@ use strict;
 use sigtrap qw(die normal-signals error-signals);
 
 require HTML::HiLiter;
-eval { require SWISH::API }; # eval per cpan bug request 14003
+eval { require SWISH::API };    # eval per cpan bug request 14003
+
 # the fuzzy word access was fixed in SWISH::API 0.04
 # but this module will still work under 0.03 if not using fuzzy
-if ( $@ or $SWISH::API::VERSION < 0.03 )
+if ($@ or $SWISH::API::VERSION < 0.03)
 {
-	die "SWISH::HiLiter requires SWISH::API version 0.03 or newer\n";
+    die "SWISH::HiLiter requires SWISH::API version 0.03 or newer\n";
 }
 
-use vars qw/ $VERSION $Context $Occurrences $Max_Chars $Debug $ellip $Word_Ave /;
+our ($VERSION, $Context, $Occurrences, $Max_Chars, $Debug, $ellip, $Word_Ave);
 
-$VERSION = 0.03;
+$VERSION = 0.04;
 
-$ellip 	    = ' ... ';	# for snipping
-$Debug 		= 0;	# duh.
-$Max_Chars 	= 300;	# for dumb_snip
-$Occurrences= 5;	# number of instances
-$Context 	= 8;	# number of words before and after match to include
-$Word_Ave	= 5;	# assume the average word is 5 chars (used in re_snip() )
-
+$ellip       = ' ... ';    # for snipping
+$Debug       = 0;          # duh.
+$Max_Chars   = 300;        # for dumb_snip
+$Occurrences = 5;          # number of instances
+$Context     = 8;          # number of words before and after match to include
+$Word_Ave = 5;    # assume the average word is 5 chars (used in re_snip() )
 
 # optimizing help
 my $ticker;
 
 eval { require Pubs::Times; };
 
-unless ($@) {
+unless ($@)
+{
 
-	$ticker = 1;
-	Pubs::Times::tick('start swish::hiliter');
+    $ticker = 1;
+    Pubs::Times::tick('start swish::hiliter');
 }
 
-$ticker = 0;	# set to 0 to turn off timing report
-
+$ticker = 0;    # set to 0 to turn off timing report
 
 =pod
 
@@ -215,70 +216,74 @@ should still work, but snip() might break...
 
 =cut
 
-
 sub new
 {
-        my $package = shift;
-        my $self = {};
-        bless($self, $package);
-        $self->_init(@_);
-        return $self;
+    my $package = shift;
+    my $self    = {};
+    bless($self, $package);
+    $self->_init(@_);
+    return $self;
 }
 
 sub _init
 {
     my $self = shift;
     $self->{'start'} = time;
-        
+
     # if one param, assume it's a swish object
     # otherwise treat it as a hash
-    
-    if (scalar @_ == 1) {
-    
-    	$self->{swish} = shift @_;
-    
-    } elsif (@_) {
-    
-        my %extra = @_;
-        @$self{keys %extra} = values %extra;
-	
-    } else {
-    
-    	die "new() needs at least a SWISH::API object\n";
-	
-    }
-    
-    # unless we are running under util=>1,
-    # create a HTML::HiLiter object and remember it
-    unless ( $self->{util} )
+
+    if (scalar @_ == 1)
     {
-    	require HTML::HiLiter;
-    	$self->{hiliter} = new HTML::HiLiter(
-    		debug=>$self->{debug} || $Debug,
-    		SWISH=>$self->{swish},
-			Colors=>$self->{colors} || $self->{Colors} || undef,
-			Parser=>0	# don't require HTML::Parser etc.
-			);
+
+        $self->{swish} = shift @_;
 
     }
-    
-    _word_regexp( $self );
-    
+    elsif (@_)
+    {
+
+        my %extra = @_;
+        @$self{keys %extra} = values %extra;
+
+    }
+    else
+    {
+
+        die "new() needs at least a SWISH::API object\n";
+
+    }
+
+    # unless we are running under util=>1,
+    # create a HTML::HiLiter object and remember it
+    unless ($self->{util})
+    {
+        require HTML::HiLiter;
+        $self->{hiliter} = new HTML::HiLiter(
+            debug => $self->{debug} || $Debug,
+            SWISH => $self->{swish},
+            Colors => $self->{colors} || $self->{Colors} || undef,
+            Parser => 0    # don't require HTML::Parser etc.
+                                            );
+
+    }
+
+    _word_regexp($self);
+
     $self->{occurrences} ||= $Occurrences;
-    $self->{max_chars} ||= $Max_Chars;
-    $self->{context} ||= $Context;
-    $self->{debug} ||= $Debug;
+    $self->{max_chars}   ||= $Max_Chars;
+    $self->{context}     ||= $Context;
+    $self->{debug}       ||= $Debug;
     $self->{escape} = 1 unless defined $self->{escape};
     $self->{snip} ||= '';
-    $self->{snipfunc} = \&loop_snip;	# default
+    $self->{snipfunc} = \&loop_snip;                               # default
     $self->{snipfunc} = \&re_snip if $self->{snip} =~ /re/i;
     $self->{snipfunc} = \&dumb_snip if $self->{snip} =~ /dumb/i;
-    
-    
-    if ( $self->{query} ) {
-    
-    	return $self->setq( $self->{query} );
-	
+
+    if ($self->{query})
+    {
+
+        return $self->setq($self->{query});
+
     }
     1;
 
@@ -286,6 +291,7 @@ sub _init
 
 sub stem
 {
+
 =pod
 
 =head2 stem( I<word> )
@@ -299,29 +305,30 @@ B<NOTE:> stem() requires SWISH::API version 0.04 or newer.
 
 =cut
 
-    if ( $SWISH::API::VERSION < 0.04 ) {
+    if ($SWISH::API::VERSION < 0.04)
+    {
         die "stem() requires SWISH::API version 0.04 or newer\n";
     }
-    my $self = shift;
-    my $w = shift;
-    my $index = $self->{index} || ( $self->{swish}->IndexNames )[0];
+    my $self  = shift;
+    my $w     = shift;
+    my $index = $self->{index} || ($self->{swish}->IndexNames)[0];
     $self->{index} ||= $index;
-	    
-    my $fw = $self->{swish}->Fuzzify( $index, $w );
-    
-    my @fuzz = $fw->WordList;
-    
-    if ( my $e = $fw->WordError ) {
-    
-    	warn "Error in Fuzzy WordList ($e): $!\n";
-		return undef;
-	
-    }
-    
-    return $fuzz[0];	# we ignore possible doublemetaphone
-    
-}
 
+    my $fw = $self->{swish}->Fuzzify($index, $w);
+
+    my @fuzz = $fw->WordList;
+
+    if (my $e = $fw->WordError)
+    {
+
+        warn "Error in Fuzzy WordList ($e): $!\n";
+        return undef;
+
+    }
+
+    return $fuzz[0];    # we ignore possible doublemetaphone
+
+}
 
 sub light
 {
@@ -334,17 +341,19 @@ Returns highlighted I<text>. See new() for ways to control context, length, etc.
 
 =cut
 
-	my $self = shift;
-	my $t = shift;
-	Pubs::Times::tick('light()') if $ticker;
-	
-	return $self->{hiliter}->hilite( $t );
-	#return $t;
+    my $self = shift;
+    my $t    = shift;
+    Pubs::Times::tick('light()') if $ticker;
+
+    return $self->{hiliter}->hilite($t);
+
+    #return $t;
 
 }
 
 sub setq
 {
+
 =pod
 
 =head2 setq( I<query> )
@@ -382,81 +391,88 @@ Example:
 
 =cut
 
-	my $self = shift;
-	my $q = shift || return $self->{query};
-	my $hiliter = $self->{hiliter};
-	
-	# get list of metanames for correct setq()
-	my @meta = $self->{metanames} || $hiliter->_metanames;
-	
-	my @q = $hiliter->Queries( $q, \@meta );
-	my $regexps = $hiliter->Queries;
-	
-	#print "Q: $_ -> $Q->{$_}\n" for sort keys %$Q;
-	
-	$self->{query} = join(' ', @q);
-	$self->{query_array} = [ @q ];
-	
-	# create regexp for loop_snip()
-	# other regexp come from HTML::HiLiter
-	my @re;
-	my $wc = $hiliter->{WordCharacters};
-	
-	for ( @q ) {
-	
-		#warn "q before: $_\n";
-		
-		my $q = quotemeta( $_ );# quotemeta speeds up the match, too
-					# even though we have to unquote below
-		
-		$q =~ s/\\\*/[$wc]*/;	# wildcard -- HTML::HiLiter does a better regexp.
-					# this is just in the ballpark.
-					
-		push(@re,$q);
-		
-		$self->{safe}->{$_} = $q;
-		$self->{simple}->{$_} = $regexps->{$_}->[1];
-		$self->{complex}->{$_} = $regexps->{$_}->[0];
-		
-	}
-	my $j = join('|',@re);
-	$self->{qre} = qr/($self->{ignoref}$j$self->{ignorel})/i;
-	
-	warn __PACKAGE__, " qre: $self->{qre}\n" if $self->{debug};
-	
-	# set up the style
-	$hiliter->Inline;
-	
-	return @q;
+    my $self    = shift;
+    my $q       = shift || return $self->{query};
+    my $hiliter = $self->{hiliter};
 
+    delete $hiliter->{sortedq}; # MUST do this to allow plaintext to work right.
+        # fixes bug reported by sylvain.amrani@gendarmerie.org
+        # on 2/22/06, where setq() would fail in a loop of queries
+
+    # get list of metanames for correct setq()
+    my @meta = $self->{metanames} || $hiliter->_metanames;
+
+    my @q       = $hiliter->Queries($q, \@meta);
+    my $regexps = $hiliter->Queries;
+
+    #print "Q: $_ -> $Q->{$_}\n" for sort keys %$Q;
+
+    $self->{query}       = join(' ', @q);
+    $self->{query_array} = [@q];
+
+    # create regexp for loop_snip()
+    # other regexp come from HTML::HiLiter
+    my @re;
+    my $wc = $hiliter->{WordCharacters};
+
+    for (@q)
+    {
+
+        #warn "q before: $_\n";
+
+        my $q = quotemeta($_);    # quotemeta speeds up the match, too
+                                  # even though we have to unquote below
+
+        $q =~ s/\\\*/[$wc]*/;  # wildcard -- HTML::HiLiter does a better regexp.
+                               # this is just in the ballpark.
+
+        push(@re, $q);
+
+        $self->{safe}->{$_}    = $q;
+        $self->{simple}->{$_}  = $regexps->{$_}->[1];
+        $self->{complex}->{$_} = $regexps->{$_}->[0];
+
+    }
+    my $j = join('|', @re);
+    $self->{qre} = qr/($self->{ignoref}$j$self->{ignorel})/i;
+
+    warn __PACKAGE__, " qre: $self->{qre}\n" if $self->{debug};
+
+    # set up the style
+    $hiliter->Inline;
+
+    return @q;
 
 }
 
 sub _word_regexp
 {
 
-# this based on SWISH::PhraseHighlight::set_match_regexp()
+    # this based on SWISH::PhraseHighlight::set_match_regexp()
 
     my $self = shift;
     my $wc = $self->{hiliter}->{WordCharacters} || '\w\-\.\/';
-    $self->{wc_regexp}      = qr/[^$wc]+/io;    # regexp for splitting into swish-words
-    
+    $self->{wc_regexp} = qr/[^$wc]+/io;  # regexp for splitting into swish-words
+
     my $igf = $self->{hiliter}->{IgnoreFirstChar};
     my $igl = $self->{hiliter}->{IgnoreLastChar};
-    for ( $igf, $igl ) {
-         if ( $_ ) {
-            # $_ = quotemeta;  # already quoted
-             $_ = "[^$_]*";
-         } else {
-             $_ = '';
-         }
-     }
-    
+    for ($igf, $igl)
+    {
+        if ($_)
+        {
 
-    $self->{ignoref} = $igf;  
+            # $_ = quotemeta;  # already quoted
+            $_ = "[^$_]*";
+        }
+        else
+        {
+            $_ = '';
+        }
+    }
+
+    $self->{ignoref} = $igf;
     $self->{ignorel} = $igl;
 }
-
 
 #######################################################################
 # pick a snipper, any snipper
@@ -467,9 +483,10 @@ sub _word_regexp
 
 sub snipper
 {
-# backwards compatible naming
-	return snip( @_ );
-	
+
+    # backwards compatible naming
+    return snip(@_);
+
 }
 
 sub snip
@@ -489,359 +506,385 @@ in new() if you see it slowing down your code.
 
 =cut
 
-	my ($self,$t) = @_;
-	my $q = $self->{query_array} || undef;
-	$self->{snipfunc} = \&dumb_snip unless $q;
-	
-	my $func = $self->{snipfunc};
-	$func = \&re_snip if grep { /\ / } @$q and $self->{snip} ne 'dumb';
-			#phrases must use re_snip
-	
-	# don't snip if we're less than the threshold
-	return $t if length( $t ) < $self->{max_chars};
-	
-	my $s = &$func( @_ );	# sanity check again
-	
-	$s = $self->dumb_snip( $s ) if length( $s ) > ( $self->{max_chars} * 2 );
-	
-	return $s;
+    my ($self, $t) = @_;
+    my $q = $self->{query_array} || undef;
+    $self->{snipfunc} = \&dumb_snip unless $q;
+
+    my $func = $self->{snipfunc};
+    $func = \&re_snip if grep { /\ / } @$q and $self->{snip} ne 'dumb';
+
+    #phrases must use re_snip
+
+    # don't snip if we're less than the threshold
+    return $t if length($t) < $self->{max_chars};
+
+    my $s = &$func(@_);    # sanity check again
+
+    $s = $self->dumb_snip($s) if length($s) > ($self->{max_chars} * 2);
+
+    return $s;
 
 }
-
 
 sub _re_match
 {
 
-# the .{0,$char} regexp slows things WAY down. so just match, then use pos() to get
-# chars before and after.
+    # the .{0,$char} regexp slows things WAY down. so just match, then use pos() to get
+    # chars before and after.
 
-# if escape = 0 and if prefix or suffix contains a < or >, try to include entire tagset.
-# but don't try too hard.
+    # if escape = 0 and if prefix or suffix contains a < or >, try to include entire tagset.
+    # but don't try too hard.
 
-	my ($self, $text, $re, $cnt, $total, $snips, $ranges, $occur, $char) = @_;
+    my ($self, $text, $re, $cnt, $total, $snips, $ranges, $occur, $char) = @_;
 
-	Pubs::Times::tick('start re_match') if $ticker;
-	
-	my $t_len = length $$text;
-	
-	RE: while ( $$text =~ m/$re/gi )
-	{
-	
-#		warn "re: '$re'\n";
-#		warn "\$1 = '$1' = ", ord( $1 ), "\n";
-#		warn "\$2 = '$2'\n";
-#		warn "\$3 = '$3' = ", ord( $3 ), "\n";
-		
-		my $match = $2;
-		$$cnt++;
-		my $pos = pos $$text;
-		#warn "already found $pos\n" if exists $ranges->{$pos};
-		next RE if exists $ranges->{$pos};
-			
-		my $len = length $match;
-		
-		my $start_match = $pos - $len -1;	# -1 to offset $1
-		$start_match = 0 if $start_match < 0;
-		
-		# sanity
-		#warn "match should be: '", substr( $$text, $start_match, $len ), "'\n";
-		
-		my $prefix_start = $start_match < $$char
-		? 0
-		: $start_match - $$char;
-			
-		my $prefix_len = $start_match - $prefix_start;
-		#$prefix_len++; $prefix_len++;
-			
-		my $suffix_start = $pos -1;	# -1 to offset $3
-		my $suffix_len = $$char;
-		my $end = $suffix_start + $suffix_len;
-		# if $end extends beyond, that's ok, substr compensates
-			
-		$ranges->{$_}++ for ($prefix_start .. $end);
-			
-#		warn "prefix_start = $prefix_start\n";
-#		warn "prefix_len = $prefix_len\n";
-#		warn "start_match = $start_match\n";
-#		warn "len = $len\n";
-#		warn "pos = $pos\n";
-#		warn "char = $$char\n";
-#		warn "suffix_start = $suffix_start\n";
-#		warn "suffix_len = $suffix_len\n";
-#		warn "end = $end\n";
-		
-		my $prefix = substr( $$text, $prefix_start, $prefix_len );
-		my $suffix = substr( $$text, $suffix_start, $suffix_len );
+    Pubs::Times::tick('start re_match') if $ticker;
 
-#		warn "prefix: '$prefix'\n";
-#		warn "match:  '$match'\n";
-#		warn "suffix: '$suffix'\n";
+    my $t_len = length $$text;
 
-	# try and get whole words if we split one up
-	# _no_*_partial does this more rudely
-	
-	# might be faster to do m/(\S)*$prefix/i 
-	# but we couldn't guarantee position accuracy
-	# e.g. if $prefix matched more than once in $$text, we might pull the wrong \S*
-	
-		unless ( $prefix =~ m/^\s/ or substr( $$text, $prefix_start - 1, 1 ) =~ m/(\s)/) {
-		   while ( --$prefix_start >= 0 and substr( $$text, $prefix_start, 1 ) =~ m/(\S)/ )
-		   {
-			my $onemorechar = $1;
-			#warn "adding $onemorechar to prefix\n";
-			$prefix = $onemorechar . $prefix;
-			#last if $prefix_start <= 0 or $onemorechar !~ /\S/;
-		   }	
-		}
-		
-	# do same for suffix
-    
-    # We get error here under -w
-    # about substr outside of string -- is $end undefined sometimes??
-    
-		unless ( $suffix =~ m/\s$/ or substr( $$text, $end, 1 ) =~ m/(\s)/ ) {
-		   while ( $end <= $t_len and substr( $$text, $end++, 1 ) =~ m/(\S)/ )
-		   {
-		
-			my $onemore = $1;
-			#warn "adding $onemore to suffix\n";
-			#warn "before '$suffix'\n";
-			$suffix .= $onemore;
-			#warn "after  '$suffix'\n";
-		   }
-		}
-		    
+  RE: while ($$text =~ m/$re/gi)
+    {
 
-				
-		#$self->{escape} = 1;
-		
-		# will likely fail to include one half of tagset if other is complete
-		unless ($self->{escape}) {
-		   my $sanity = 0;
-		   my @l = ( $prefix =~ /(<)/g );
-		   my @r = ( $prefix =~ /(>)/g );
-		   while ( scalar @l != scalar @r )
-		   {
-		   
-		    	@l = ( $prefix =~ /(<)/g );
-			@r = ( $prefix =~ /(>)/g );
-			last if scalar @l == scalar @r;	# don't take any more than we need to
-			
-		    	my $onemorechar = substr( $$text, $prefix_start--, 1 );
-			#warn "tagfix: adding $onemorechar to prefix\n";
-			$prefix = $onemorechar . $prefix;
-			last if $prefix_start <= 0;
-			last if $sanity++ > 100;
-		
-		   }
-		   
-		   $sanity = 0;
-		   while ( $suffix =~ /<(\w+)/ && $suffix !~ /<\/$1>/ )
-		   {
-		       
-		    	my $onemorechar = substr( $$text, $end, 1 );
-			#warn "tagfix: adding $onemorechar to suffix\n";
-			$suffix .= $onemorechar;
-			last if ++$end > $t_len;
-			last if $sanity++ > 100;
-		
-		   }
-		}
-				
-		
-#		warn "prefix: '$prefix'\n";
-#		warn "match:  '$match'\n";
-#		warn "suffix: '$suffix'\n";
-		
-		my $context = join('',$prefix,$match,$suffix);
-		
-		#warn "context is '$context'\n";
-						
-	    	push( @$snips, $context );
-		
-	    	$$total++;
-#		warn '-' x 40, "\n";
-		
-	    	last if $$cnt == $$occur;
-	}
-	
-	Pubs::Times::tick("end re_match - total is $$total") if $ticker;
-	1;
+        #		warn "re: '$re'\n";
+        #		warn "\$1 = '$1' = ", ord( $1 ), "\n";
+        #		warn "\$2 = '$2'\n";
+        #		warn "\$3 = '$3' = ", ord( $3 ), "\n";
+
+        my $match = $2;
+        $$cnt++;
+        my $pos = pos $$text;
+
+        #warn "already found $pos\n" if exists $ranges->{$pos};
+        next RE if exists $ranges->{$pos};
+
+        my $len = length $match;
+
+        my $start_match = $pos - $len - 1;    # -1 to offset $1
+        $start_match = 0 if $start_match < 0;
+
+        # sanity
+        #warn "match should be: '", substr( $$text, $start_match, $len ), "'\n";
+
+        my $prefix_start =
+          $start_match < $$char
+          ? 0
+          : $start_match - $$char;
+
+        my $prefix_len = $start_match - $prefix_start;
+
+        #$prefix_len++; $prefix_len++;
+
+        my $suffix_start = $pos - 1;                      # -1 to offset $3
+        my $suffix_len   = $$char;
+        my $end          = $suffix_start + $suffix_len;
+
+        # if $end extends beyond, that's ok, substr compensates
+
+        $ranges->{$_}++ for ($prefix_start .. $end);
+
+        #		warn "prefix_start = $prefix_start\n";
+        #		warn "prefix_len = $prefix_len\n";
+        #		warn "start_match = $start_match\n";
+        #		warn "len = $len\n";
+        #		warn "pos = $pos\n";
+        #		warn "char = $$char\n";
+        #		warn "suffix_start = $suffix_start\n";
+        #		warn "suffix_len = $suffix_len\n";
+        #		warn "end = $end\n";
+
+        my $prefix = substr($$text, $prefix_start, $prefix_len);
+        my $suffix = substr($$text, $suffix_start, $suffix_len);
+
+        #		warn "prefix: '$prefix'\n";
+        #		warn "match:  '$match'\n";
+        #		warn "suffix: '$suffix'\n";
+
+        # try and get whole words if we split one up
+        # _no_*_partial does this more rudely
+
+        # might be faster to do m/(\S)*$prefix/i
+        # but we couldn't guarantee position accuracy
+        # e.g. if $prefix matched more than once in $$text, we might pull the wrong \S*
+
+        unless ($prefix =~ m/^\s/
+                or substr($$text, $prefix_start - 1, 1) =~ m/(\s)/)
+        {
+            while (--$prefix_start >= 0
+                   and substr($$text, $prefix_start, 1) =~ m/(\S)/)
+            {
+                my $onemorechar = $1;
+
+                #warn "adding $onemorechar to prefix\n";
+                $prefix = $onemorechar . $prefix;
+
+                #last if $prefix_start <= 0 or $onemorechar !~ /\S/;
+            }
+        }
+
+        # do same for suffix
+
+        # We get error here under -w
+        # about substr outside of string -- is $end undefined sometimes??
+
+        unless ($suffix =~ m/\s$/ or substr($$text, $end, 1) =~ m/(\s)/)
+        {
+            while ($end <= $t_len and substr($$text, $end++, 1) =~ m/(\S)/)
+            {
+
+                my $onemore = $1;
+
+                #warn "adding $onemore to suffix\n";
+                #warn "before '$suffix'\n";
+                $suffix .= $onemore;
+
+                #warn "after  '$suffix'\n";
+            }
+        }
+
+        #$self->{escape} = 1;
+
+        # will likely fail to include one half of tagset if other is complete
+        unless ($self->{escape})
+        {
+            my $sanity = 0;
+            my @l      = ($prefix =~ /(<)/g);
+            my @r      = ($prefix =~ /(>)/g);
+            while (scalar @l != scalar @r)
+            {
+
+                @l = ($prefix =~ /(<)/g);
+                @r = ($prefix =~ /(>)/g);
+                last
+                  if scalar @l ==
+                  scalar @r;    # don't take any more than we need to
+
+                my $onemorechar = substr($$text, $prefix_start--, 1);
+
+                #warn "tagfix: adding $onemorechar to prefix\n";
+                $prefix = $onemorechar . $prefix;
+                last if $prefix_start <= 0;
+                last if $sanity++ > 100;
+
+            }
+
+            $sanity = 0;
+            while ($suffix =~ /<(\w+)/ && $suffix !~ /<\/$1>/)
+            {
+
+                my $onemorechar = substr($$text, $end, 1);
+
+                #warn "tagfix: adding $onemorechar to suffix\n";
+                $suffix .= $onemorechar;
+                last if ++$end > $t_len;
+                last if $sanity++ > 100;
+
+            }
+        }
+
+        #		warn "prefix: '$prefix'\n";
+        #		warn "match:  '$match'\n";
+        #		warn "suffix: '$suffix'\n";
+
+        my $context = join('', $prefix, $match, $suffix);
+
+        #warn "context is '$context'\n";
+
+        push(@$snips, $context);
+
+        $$total++;
+
+        #		warn '-' x 40, "\n";
+
+        last if $$cnt == $$occur;
+    }
+
+    Pubs::Times::tick("end re_match - total is $$total") if $ticker;
+    1;
 }
 
 sub re_snip
 {
-# get first N matches for each q, then take one of each till we have $occur
 
-	Pubs::Times::tick('start re_snip()') if $ticker;
-	
-	my $self 	= shift;
-	my $t 		= shift;
-	my $q 		= shift || $self->{query_array};
-	
-	my $occur 	= $self->{occurrences};
-	my $hiliter 	= $self->{hiliter};
-	my $char 	= $self->{context} * $Word_Ave;
-	my %snips;
-	my @snips;
-	my $total = 0;
-	my $notwc = $self->{wc_regexp};
-	my %ranges; 	# keep track of all pos() in @snips
-			# so that we don't overlap snips
-			# that contain multiple query words (like a virtual phrase)
-			
-	Q: for my $q (@$q)
-	{
-	    my $cnt = 0;
-	    $snips{$q} = [];
-		
-	# try simple regexp first, then more complex if we don't match
-	    $self->_re_match(\$t,$self->{simple}->{$q},\$cnt,\$total,$snips{$q},\%ranges,\$occur,\$char);
-		
-	    next Q if $cnt;	# if we have at least some simple, go to next q
-		
-	    pos $t = 0;	# do we really need to reset this?
-		
-	    $self->_re_match(\$t,$self->{complex}->{$q},\$cnt,\$total,$snips{$q},\%ranges,\$occur,\$char);
-		
-	}
+    # get first N matches for each q, then take one of each till we have $occur
 
-	return $self->dumb_snip( $t ) unless $total;
-	
-	# get all snips into one array in order retrieved
-	# should be a max of $occur in any one $q snip array
-	N: for (0 .. $occur) {
-	    #warn "total is $total\n";
-	    Q: for my $q (@$q) {
-		next Q unless exists $snips{$q};
-		next Q unless scalar @{ $snips{$q} };
-		push(@snips, shift @{ $snips{$q} } );
-	    }
-	}
-	@snips = splice @snips, 0, $occur;
-		
-	#warn "0: '$snips[0]'\n";
-	#warn "t: ", substr($t, 0, 20), "\n";
-		
-	$snips[0] = $ellip . $snips[0] unless $t =~ m/^\Q$snips[0]/i;
-	$snips[-1] .= $ellip unless $t =~ m/\Q$snips[-1]$/i;
-		
-	my $snip = join($ellip, @snips);
-	
-	_escape( $snip ) if $self->{escape};
-	
-	return $snip;
-			
+    Pubs::Times::tick('start re_snip()') if $ticker;
+
+    my $self = shift;
+    my $t    = shift;
+    my $q    = shift || $self->{query_array};
+
+    my $occur   = $self->{occurrences};
+    my $hiliter = $self->{hiliter};
+    my $char    = $self->{context} * $Word_Ave;
+    my %snips;
+    my @snips;
+    my $total = 0;
+    my $notwc = $self->{wc_regexp};
+    my %ranges;    # keep track of all pos() in @snips
+                   # so that we don't overlap snips
+                   # that contain multiple query words (like a virtual phrase)
+
+  Q: for my $q (@$q)
+    {
+        my $cnt = 0;
+        $snips{$q} = [];
+
+        # try simple regexp first, then more complex if we don't match
+        $self->_re_match(\$t, $self->{simple}->{$q},
+                         \$cnt, \$total, $snips{$q}, \%ranges, \$occur, \$char);
+
+        next Q if $cnt;    # if we have at least some simple, go to next q
+
+        pos $t = 0;        # do we really need to reset this?
+
+        $self->_re_match(\$t, $self->{complex}->{$q},
+                         \$cnt, \$total, $snips{$q}, \%ranges, \$occur, \$char);
+
+    }
+
+    return $self->dumb_snip($t) unless $total;
+
+    # get all snips into one array in order retrieved
+    # should be a max of $occur in any one $q snip array
+  N: for (0 .. $occur)
+    {
+
+        #warn "total is $total\n";
+      Q: for my $q (@$q)
+        {
+            next Q unless exists $snips{$q};
+            next Q unless scalar @{$snips{$q}};
+            push(@snips, shift @{$snips{$q}});
+        }
+    }
+    @snips = splice @snips, 0, $occur;
+
+    #warn "0: '$snips[0]'\n";
+    #warn "t: ", substr($t, 0, 20), "\n";
+
+    $snips[0] = $ellip . $snips[0] unless $t =~ m/^\Q$snips[0]/i;
+    $snips[-1] .= $ellip unless $t =~ m/\Q$snips[-1]$/i;
+
+    my $snip = join($ellip, @snips);
+
+    _escape($snip) if $self->{escape};
+
+    return $snip;
+
 }
 
 sub loop_snip
 {
 
+    my $self = shift;
+    my $txt  = shift || return '';
 
-	my $self 	= shift;
-	my $txt 	= shift || return '';
-	
-	my $regexp 	= $self->{qre};
+    my $regexp = $self->{qre};
 
-	#warn "regexp: $regexp\n";
-	#warn "match!\n" if $txt =~ m/$regexp/;
+    #warn "regexp: $regexp\n";
+    #warn "match!\n" if $txt =~ m/$regexp/;
 
-	# no matches
-	return $self->dumb_snip( $txt ) unless $txt =~ m/$regexp/;
-	
-	Pubs::Times::tick('start loop_snip()') if $ticker;
+    # no matches
+    return $self->dumb_snip($txt) unless $txt =~ m/$regexp/;
 
-	my $context 	= $self->{context};
-	my $max 	= $self->{max_chars};
-	my $occur 	= $self->{occurrences};
-	my @snips;	
+    Pubs::Times::tick('start loop_snip()') if $ticker;
 
-	my $notwc = $self->{wc_regexp};
+    my $context = $self->{context};
+    my $max     = $self->{max_chars};
+    my $occur   = $self->{occurrences};
+    my @snips;
 
-	my @words = split(/($notwc)/, $txt);
-	my $count = -1;
-	my $start_again = $count;
-	my $total = 0;
-	
-	WORD: for my $w (@words)
-	{
-		#warn ">>\n" if ($count / 2) =~ m/\./ ;
-		#warn "word: '$w'\n";
-		$count++;
-		next WORD if $count < $start_again;
-	# the next WORD lets us skip past the last frag we excerpted
-		
-		my $last = $count - 1;
-		my $next = $count + 1;
-		#warn '-' x 30 . "\n";
-		if ( $w =~ m/^$regexp$/ ) {
-		
-			#warn "w: '$w' match: '$1'\n";
-		
-			my $before = $last - $context;
-			$before = 0 if $before < 0;
-			my $after = $next + $context;
-			$after = $#words if $after > $#words;
-			
-			#warn "$before .. $last, $count, $next .. $after\n";
-			
-			my @before = @words[ $before .. $last ];
-			my @after = @words[ $next .. $after ];
-			
-			$total += grep { m/^$regexp$/i } (@before, @after);
-			$total++;	# for current $w
-			
-			my $t = join('', @before, $w, @after );
-					  
-			$t .= $ellip unless $count == $#words;
-			#$t = $ellip . $t unless $count == 0;
-			
-			#warn "t: $t\n";
-			
-			#warn "total: $total\n";
-			
-			push(@snips, $t);
-			last WORD if scalar @snips >= $occur;
-			
-			$start_again = $after;
-		}
-		
-		last WORD if $total >= $occur;
-		
-	}
-	
-	#warn "snips: " . scalar @snips;
-	#warn "words: $count\n";
-	#warn "grandtotal: $total\n";
-	#warn "occur: $occur\n";
-	
-	#warn '-' x 50 . "\n";
-	
-	my $snippet = join('', @snips);
-	$snippet = $ellip . $snippet unless $snippet =~ m/^$words[0]/;
-	# convert special HTML characters
- 	_escape( $snippet ) if $self->{escape};
-		
-	Pubs::Times::tick('end loop_snip()') if $ticker;
-	
-	return $snippet;
-	
+    my $notwc = $self->{wc_regexp};
+
+    my @words       = split(/($notwc)/, $txt);
+    my $count       = -1;
+    my $start_again = $count;
+    my $total       = 0;
+
+  WORD: for my $w (@words)
+    {
+
+        #warn ">>\n" if ($count / 2) =~ m/\./ ;
+        #warn "word: '$w'\n";
+        $count++;
+        next WORD if $count < $start_again;
+
+        # the next WORD lets us skip past the last frag we excerpted
+
+        my $last = $count - 1;
+        my $next = $count + 1;
+
+        #warn '-' x 30 . "\n";
+        if ($w =~ m/^$regexp$/)
+        {
+
+            #warn "w: '$w' match: '$1'\n";
+
+            my $before = $last - $context;
+            $before = 0 if $before < 0;
+            my $after = $next + $context;
+            $after = $#words if $after > $#words;
+
+            #warn "$before .. $last, $count, $next .. $after\n";
+
+            my @before = @words[$before .. $last];
+            my @after  = @words[$next .. $after];
+
+            $total += grep { m/^$regexp$/i } (@before, @after);
+            $total++;    # for current $w
+
+            my $t = join('', @before, $w, @after);
+
+            $t .= $ellip unless $count == $#words;
+
+            #$t = $ellip . $t unless $count == 0;
+
+            #warn "t: $t\n";
+
+            #warn "total: $total\n";
+
+            push(@snips, $t);
+            last WORD if scalar @snips >= $occur;
+
+            $start_again = $after;
+        }
+
+        last WORD if $total >= $occur;
+
+    }
+
+    #warn "snips: " . scalar @snips;
+    #warn "words: $count\n";
+    #warn "grandtotal: $total\n";
+    #warn "occur: $occur\n";
+
+    #warn '-' x 50 . "\n";
+
+    my $snippet = join('', @snips);
+    $snippet = $ellip . $snippet unless $snippet =~ m/^$words[0]/;
+
+    # convert special HTML characters
+    _escape($snippet) if $self->{escape};
+
+    Pubs::Times::tick('end loop_snip()') if $ticker;
+
+    return $snippet;
+
 }
 
 sub _escape
 {
-	my %c =
-	(
-		'>' 	=> '&gt;',
-		'<' 	=> '&lt;',
-		'&' 	=> '&amp;',
-		#"\xa0" 	=> '&nbsp;',	# this should be optional
-                                    # since HTML::HiLiter won't like it
-		'"'	=> '&quot;'
-	);
-	my $C = join '', keys %c;
-	$_[0] =~ s/([$C])/$c{$1}/og;
-	1;
+    my %c = (
+        '>' => '&gt;',
+        '<' => '&lt;',
+        '&' => '&amp;',
+
+        #"\xa0" 	=> '&nbsp;',	# this should be optional
+        # since HTML::HiLiter won't like it
+        '"' => '&quot;'
+            );
+    my $C = join '', keys %c;
+    $_[0] =~ s/([$C])/$c{$1}/og;
+    1;
 }
 
 sub _no_start_partial
@@ -857,25 +900,24 @@ sub _no_end_partial
 sub dumb_snip
 {
 
-# just grap the first X chars and return
+    # just grap the first X chars and return
 
-	Pubs::Times::tick('start dumb_snip()') if $ticker;
-	my $self = shift;
-	my $txt = shift;
-	my $noshow = $self->{noshow} || 0;
-	my $max = $self->{max_chars};
-	
-	my $show = $noshow ? '' : substr $txt, 0, $max;
-		
-	$show =~ s/\s+\S+$//gs;	# no ending partial words
-	$show .= $ellip;
-		
-	_escape( $show ) if $self->{escape};
-	Pubs::Times::tick('end dumb_snip()') if $ticker;
-	return $show;
+    Pubs::Times::tick('start dumb_snip()') if $ticker;
+    my $self   = shift;
+    my $txt    = shift;
+    my $noshow = $self->{noshow} || 0;
+    my $max    = $self->{max_chars};
+
+    my $show = $noshow ? '' : substr $txt, 0, $max;
+
+    $show =~ s/\s+\S+$//gs;    # no ending partial words
+    $show .= $ellip;
+
+    _escape($show)                       if $self->{escape};
+    Pubs::Times::tick('end dumb_snip()') if $ticker;
+    return $show;
 
 }
-
 
 1;
 __END__

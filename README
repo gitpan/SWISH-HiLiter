@@ -1,4 +1,4 @@
-SWISH/HiLiter version 0.01
+SWISH::HiLiter
 ==========================
 
 SWISH::HiLiter might be used for highlighting snippets of text
@@ -20,6 +20,7 @@ This module requires these other modules and libraries:
 
    HTML::HiLiter
    SWISH::API
+   Test::More
 
 COPYRIGHT AND LICENCE
 

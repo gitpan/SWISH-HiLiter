@@ -12,3 +12,13 @@ Revision history for Perl extension SWISH::HiLiter.
 
 	- SWISH::API version 0.04 required for stem() to really work.
 	- misc fixes for substr() when snipping.
+
+0.04 Thu Feb 23 09:24:10 CST 2006
+
+	- fixed bug with calling setq() multiple times with single HiLiter
+	  object (thanks to sylvain.amrani@gendarmerie.org for reporting).
+	- ran HiLiter.pm through perltidy for general hygiene
+	- added t/loop.t to test for bug
+	- added dependencies in Makefile.PL
+
+
