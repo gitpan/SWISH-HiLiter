@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               SWISH-HiLiter
-version:            0.06
+version:            0.07
 abstract:           simple interface to SWISH::API and Search::Tools
 author:
     - Peter Karman <karman@cpan.org>
